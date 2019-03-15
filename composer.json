@@ -1,5 +1,5 @@
 {
-    "name": "EasySwoole/Policy",
+    "name": "easyswoole/policy",
     "authors": [
         {
             "name": "韩文博",
@@ -12,7 +12,7 @@
         }
     },
     "require": {
-        "php": "^7.2",
+        "php": "^7.1",
         "easyswoole/spl": "^1.1",
         "ext-json":">=1.0"
     }
