@@ -1,11 +1,5 @@
-# EasySwoole Policy
-用于验证、解析Policy结构和语法
-## 安装
-```bash
-composer require EasySwoole/Policy
-```
-## 使用方法
-```php
+<?php
+require_once '../vendor/autoload.php';
 
 $policyData = [
 	"Statement" => [
@@ -29,37 +23,3 @@ $policy->addPolicy( new \EasySwoole\Policy\RequestBean\Policy( $policyData ) );
 $policy->addPolicy( new \EasySwoole\Policy\RequestBean\Policy( $policyData ) );
 $result = $policy->verify( 'goods/list' );
 var_dump( $result );
-```
-
-
-策略json格式如下：
-```json
-{
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "goods/*",
-        "goods/list"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "goods/*",
-        "goods/list"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "goods/*",
-        "goods/list"
-      ]
-    }
-  ]
-}
-
-```
-
-- 前端policy验证的库 https://github.com/hanwenbo/policy.js
