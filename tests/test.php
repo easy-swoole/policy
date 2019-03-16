@@ -18,8 +18,8 @@ $policyData = [
 	],
 ];
 $policy = new \EasySwoole\Policy\Policy();
-$policy->addPolicy( new \EasySwoole\Policy\RequestBean\Policy( $policyData ) );
+$policy->addPolicy( new \EasySwoole\Policy\Bean\PolicyContainer( $policyData ) );
 // 可以添加多组，目的：一个用户属于多个角色组的时候，或者一个角色组对应多个存储的policy的时候
-$policy->addPolicy( new \EasySwoole\Policy\RequestBean\Policy( $policyData ) );
+$policy->addPolicy( new \EasySwoole\Policy\Bean\PolicyContainer( $policyData ) );
 $result = $policy->verify( 'goods/list' );
 var_dump( $result );
