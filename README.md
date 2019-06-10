@@ -5,50 +5,49 @@
 composer require EasySwoole/Policy
 ```
 ## 使用方法
-```php
-$container = new \EasySwoole\Policy\PolicyContainer();
-$container
-    //可以开放某个目录的全部权限，
-    ->allow('/goods/*')
-    //但可以单独禁止部分行为
-    ->deny('/goods/del')
-    ->deny('/goods/update')
-    ->allow('/public/*')
-    ->allow('/api/test2')
-    ->allow('/api/test3/*')
-    ->deny('/api/test4')
-;
-$array = $container->getPolicy();
-$policy = new \EasySwoole\Policy\Policy();
-$policy->addPolicyList($container);
-
-//*
-// * 当校验某个具体规则时候
-// */
-var_dump($policy->verify('/goods/del'));
-/*
- * 当目录下存在allow*或者是deny*的时候，那么未知行为都是遵照最高的allow或者是deny
- */
-var_dump($policy->verify('/goods/test'));
-/*
- * 注意，这里/goods会当成一个action处理，因此某个目录的权限是unknown
-// */
-var_dump($policy->verify('/goods'));
-//
-////因为goods目录有设置明确的*权限，因此/goods/*得到的结果是allow
-var_dump($policy->verify('/goods/*'));
-////而api目录并没有设置明确的*权限，因此得到的结果是未知
-var_dump($policy->verify('/api/*'));
-//
-var_dump($policy->verify('/api/test2'));
-var_dump($policy->verify('/api/test3/sub'));
-var_dump($policy->verify('/api/test4'));
-
-var_dump($policy->verify('/public/test'));
 ```
 
+use EasySwoole\Policy\PolicyNode;
+use EasySwoole\Policy\Policy;
 
-策略json格式如下：
-```json
+$policy = new Policy();
 
+$policy->addPath('/user/add',PolicyNode::EFFECT_ALLOW);
+$policy->addPath('/user/update',PolicyNode::EFFECT_ALLOW);
+$policy->addPath('/user/delete',PolicyNode::EFFECT_DENY);
+$policy->addPath('/user/*',PolicyNode::EFFECT_DENY);
+
+var_dump($policy->check('user/asdasd'));
+var_dump($policy->check('user/add'));
+var_dump($policy->check('user/update'));
+/*
+ * 允许/api/*,但是唯独拒绝/api/order/charge,/api/order/info,/api/sys/*
+ */
+$policy->addPath('/api/*',PolicyNode::EFFECT_ALLOW);
+$policy->addPath('/api/order/charge',PolicyNode::EFFECT_DENY);
+$policy->addPath('/api/order/info',PolicyNode::EFFECT_DENY);
+$policy->addPath('/api/sys/*',PolicyNode::EFFECT_DENY);
+var_dump($policy->check('/api/whatever'));
+var_dump($policy->check('/api/order/charge'));
+var_dump($policy->check('/api/order/info'));
+
+var_dump($policy->check('/api/sys/whatever'));
+
+
+///*
+// * *表示通配,根节点
+// */
+//$root = new PolicyNode('*');
+//
+//$userChild = $root->addChild('user');
+//$userChild->addChild('add');
+//$userChild->addChild('update');
+//$userChild->addChild('*');
+//
+//$apiChild = $root->addChild('charge');
+////$apiChild->addChild('*');
+////$userChild->addChild('*');
+//
+//
+//var_dump($root->search('/user/update'));
 ```
