@@ -11,7 +11,7 @@ use EasySwoole\Policy\PolicyNode;
 use EasySwoole\Policy\Policy;
 
 $policy = new Policy();
-//添加节点授权    |拒绝|未知
+//添加节点授权   
 //PolicyNode::EFFECT_ALLOW   允许
 //PolicyNode::EFFECT_DENY    拒绝
 //PolicyNode::EFFECT_UNKNOWN 未知
