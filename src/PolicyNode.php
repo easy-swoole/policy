@@ -47,6 +47,7 @@ class PolicyNode extends SplBean
     }
 
     /**
+     * 获取节点名称
      * @return string
      */
     public function getName(): string
@@ -55,6 +56,7 @@ class PolicyNode extends SplBean
     }
 
     /**
+     * 设置节点名称
      * @param string $name
      */
     public function setName(string $name): void
@@ -63,6 +65,7 @@ class PolicyNode extends SplBean
     }
 
     /**
+     * 获取节点的权限
      * @return array
      */
     public function getLeaves(): array
@@ -71,6 +74,7 @@ class PolicyNode extends SplBean
     }
 
     /**
+     * 设置节点权限
      * @param array $leaves
      */
     public function setLeaves(array $leaves): void
@@ -78,11 +82,19 @@ class PolicyNode extends SplBean
         $this->leaves = $leaves;
     }
 
+    /**
+     * 判断是否允许
+     * @return string
+     */
     public function isAllow()
     {
         return $this->allow;
     }
 
+    /**
+     * 设置是否允许
+     * @param string $allow
+     */
     public function setAllow(string $allow): void
     {
         $this->allow = $allow;
