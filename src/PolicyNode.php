@@ -100,9 +100,9 @@ class PolicyNode extends SplBean
         $this->allow = $allow;
     }
 
-    public function toArray(array $columns = null, $filter = null): array
+    public function toArray(callable|int|null $filter = null): array
     {
-        $list = parent::toArray($columns, $filter);
+        $list = parent::toArray($filter);
         foreach ($list['leaves'] as $key => $item){
             $list['leaves'][$key] = $item->toArray();
         }

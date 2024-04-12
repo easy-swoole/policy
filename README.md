@@ -2,7 +2,7 @@
 Policy（即策略）是在特定模型或者资源中组织授权逻辑的类，用来处理用户授权动作。
 ## 安装
 ```bash
-composer require EasySwoole/Policy
+composer require easySwoole/policy
 ```
 ## 使用方法
 ```
