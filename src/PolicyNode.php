@@ -100,9 +100,9 @@ class PolicyNode extends SplBean
         $this->allow = $allow;
     }
 
-    public function toArray(array $columns = null, $filter = null): array
+    public function toArray(callable|int|null $filter = null): array
     {
-        $list = parent::toArray($columns, $filter);
+        $list = parent::toArray($filter);
         foreach ($list['leaves'] as $key => $item){
             $list['leaves'][$key] = $item->toArray();
         }
@@ -120,13 +120,16 @@ class PolicyNode extends SplBean
         $path = trim($path,'/');
         $list = explode('/',$path);
         $name = array_shift($list);
-        if($name == $this->name){
+        if($name == $this->name && empty($this->leaves)){
             return $this;
         }
         if(empty($name) && $this->name == '*'){
             return $this;
         }
         if(!empty($name) && !empty($parentNode)){
+            if ($parentNode->leaves) {
+                return $parentNode->search($path);
+            }
             return $parentNode;
         }
         /*

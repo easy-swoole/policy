@@ -43,3 +43,45 @@ $node = $root->search('/user/add/aaaa');
 if ($node) {
     var_dump($node->isAllow());
 }
+
+
+$root = new PolicyNode('*');
+$a1 = $root->addChild('A');
+$a2 = $a1->addChild('A');
+$a2->setAllow(PolicyNode::EFFECT_ALLOW);
+
+$a3 = $a2->addChild('A');
+$a4 = $a3->addChild('*');
+$a4->addChild('A')->setAllow(PolicyNode::EFFECT_ALLOW);
+$a4->addChild('B')->setAllow(PolicyNode::EFFECT_DENY);
+$node = $root->search('/A/A');
+if ($node) {
+    var_dump($node->isAllow());
+}
+
+$node = $root->search('/A/A/A/A/A');
+if ($node) {
+    var_dump($node->isAllow());
+}
+
+$node = $root->search('/A/A/A/A/B');
+if ($node) {
+    var_dump($node->isAllow());
+}
+
+$node = $root->search('/A/A/A/A/Z');
+if ($node) {
+    var_dump($node->isAllow());
+}
+
+$policy = new Policy();
+// 添加节点权限
+$policy->addPath('/Api/Admin/Merchant/*/*', PolicyNode::EFFECT_ALLOW); // 添加允许的单节点
+// 验证权限
+var_dump($policy->check('/Api/Admin/Merchant/Merchant/getMerchantList')); // allow
+
+$policy = new Policy();
+// 添加节点权限
+$policy->addPath('/Api/Admin/Merchant/Merchant/*', PolicyNode::EFFECT_DENY); // 添加允许的单节点
+// 验证权限
+var_dump($policy->check('/Api/Admin/Merchant/Merchant/getMerchantList')); // deny
