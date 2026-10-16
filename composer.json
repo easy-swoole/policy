@@ -1,5 +1,14 @@
 {
     "name": "easyswoole/policy",
+    "description": "A lightweight hierarchical authorization policy library.",
+    "license": "Apache-2.0",
+    "type": "library",
+    "homepage": "https://github.com/easy-swoole/policy",
+    "keywords": ["authorization", "policy", "rbac", "easyswoole"],
+    "support": {
+        "issues": "https://github.com/easy-swoole/policy/issues",
+        "source": "https://github.com/easy-swoole/policy"
+    },
     "authors": [
         {
             "name": "韩文博",
@@ -14,6 +23,13 @@
     "require": {
         "php": ">=8.1.0",
         "easyswoole/spl": "^2.0",
-        "ext-json":">=1.0"
+        "ext-json": ">=1.0"
+    },
+    "scripts": {
+        "test": "phpunit --configuration phpunit.xml",
+        "test:coverage": "phpunit --configuration phpunit.xml --coverage-text"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
     }
 }

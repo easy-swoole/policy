@@ -13,12 +13,14 @@
 
 namespace EasySwoole\Policy;
 
+use EasySwoole\Policy\Exception\Exception as PolicyException;
+
 
 class Policy
 {
-    protected $root;
+    protected PolicyNode $root;
 
-    function __construct()
+    public function __construct()
     {
         /**
          * 表示通配,根节点
@@ -27,16 +29,25 @@ class Policy
     }
 
     /**
-     * 添加路劲并设置权限
+     * 添加路径并设置权限
      * @param string $path
      * @param string $allow
      */
-    public function addPath(string $path, string $allow = PolicyNode::EFFECT_ALLOW)
+    public function addPath(string $path, string $allow = PolicyNode::EFFECT_ALLOW): void
     {
-        $list = explode('/', trim($path, '/'));
+        $path = trim($path, '/');
+        if ($path === '') {
+            throw new PolicyException('Policy path cannot be empty.');
+        }
+
+        $list = explode('/', $path);
+        if (in_array('', $list, true)) {
+            throw new PolicyException('Policy path cannot contain empty segments.');
+        }
+
         $temp = $this->root;
-        foreach ($list as $path) {
-            $temp = $temp->addChild($path);//递归设置节点
+        foreach ($list as $segment) {
+            $temp = $temp->addChild($segment);//递归设置节点
         }
         $temp->setAllow($allow);
     }
@@ -46,11 +57,11 @@ class Policy
      * @param string $path
      * @return string
      */
-    public function check(string $path)
+    public function check(string $path): string
     {
         $node = $this->root->search($path);
         if ($node) {
-            return $node->isAllow();
+            return $node->getEffect();
         } else {
             return PolicyNode::EFFECT_UNKNOWN;
         }
@@ -58,9 +69,9 @@ class Policy
 
     /**
      * 所有节点
-     * @return array
+     * @return array<string, mixed>
      */
-    public function toArray()
+    public function toArray(): array
     {
         return $this->root->toArray();
     }
