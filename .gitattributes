@@ -7,3 +7,4 @@
 /.phpunit.cache export-ignore
 /composer.lock export-ignore
 /vendor export-ignore
+/benchmark export-ignore
