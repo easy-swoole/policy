@@ -15,15 +15,15 @@ composer require easyswoole/policy
 
 ## 授权效果
 
-策略检查始终返回以下三个字符串常量之一：
+权限状态由 `AccessStatus` 枚举定义。
 
-| 常量 | 值 | 含义 |
+| 枚举成员 | 字符串值 | 含义 |
 | --- | --- | --- |
-| `PolicyNode::EFFECT_ALLOW` | `allow` | 允许 |
-| `PolicyNode::EFFECT_DENY` | `deny` | 拒绝 |
-| `PolicyNode::EFFECT_UNKNOWN` | `unknown` | 没有匹配到明确规则 |
+| `AccessStatus::ALLOW` | `allow` | 允许 |
+| `AccessStatus::DENY` | `deny` | 拒绝 |
+| `AccessStatus::UNKNOWN` | `unknown` | 没有匹配到明确规则 |
 
-建议始终与常量比较，不要直接硬编码字符串。
+`addPath()` 和 `setAllow()` 接受 `AccessStatus` 枚举成员。`check()` 和 `getEffect()` 返回枚举成员，可用 `=== AccessStatus::ALLOW` 判断是否允许访问。导出和恢复策略数组时，`allow` 字段使用字符串值。
 
 ## 快速开始
 
@@ -32,28 +32,28 @@ composer require easyswoole/policy
 
 require_once __DIR__ . '/vendor/autoload.php';
 
+use EasySwoole\Policy\AccessStatus;
 use EasySwoole\Policy\Policy;
-use EasySwoole\Policy\PolicyNode;
 
 $policy = new Policy();
 
-$policy->addPath('/user/add', PolicyNode::EFFECT_ALLOW);
-$policy->addPath('/user/update', PolicyNode::EFFECT_ALLOW);
-$policy->addPath('/user/delete', PolicyNode::EFFECT_DENY);
-$policy->addPath('/user/*', PolicyNode::EFFECT_DENY);
+$policy->addPath('/user/add', AccessStatus::ALLOW);
+$policy->addPath('/user/update', AccessStatus::ALLOW);
+$policy->addPath('/user/delete', AccessStatus::DENY);
+$policy->addPath('/user/*', AccessStatus::DENY);
 
-var_dump($policy->check('/user/add'));          // allow
-var_dump($policy->check('/user/delete'));       // deny
-var_dump($policy->check('/user/other'));        // deny
-var_dump($policy->check('/user/other/detail')); // deny
-var_dump($policy->check('/unknown'));           // unknown
+var_dump($policy->check('/user/add'));          // AccessStatus::ALLOW
+var_dump($policy->check('/user/delete'));       // AccessStatus::DENY
+var_dump($policy->check('/user/other'));        // AccessStatus::DENY
+var_dump($policy->check('/user/other/detail')); // AccessStatus::DENY
+var_dump($policy->check('/unknown'));           // AccessStatus::UNKNOWN
 ```
 
 `addPath()` 的授权效果默认为 `allow`，因此下面两种写法等价：
 
 ```php
 $policy->addPath('/article/read');
-$policy->addPath('/article/read', PolicyNode::EFFECT_ALLOW);
+$policy->addPath('/article/read', AccessStatus::ALLOW);
 ```
 
 ## 路径匹配规则
@@ -64,13 +64,13 @@ $policy->addPath('/article/read', PolicyNode::EFFECT_ALLOW);
 
 ```php
 $policy = new Policy();
-$policy->addPath('/api/*', PolicyNode::EFFECT_ALLOW);
-$policy->addPath('/api/order/charge', PolicyNode::EFFECT_DENY);
-$policy->addPath('/api/order/info', PolicyNode::EFFECT_DENY);
+$policy->addPath('/api/*', AccessStatus::ALLOW);
+$policy->addPath('/api/order/charge', AccessStatus::DENY);
+$policy->addPath('/api/order/info', AccessStatus::DENY);
 
-var_dump($policy->check('/api/product/list')); // allow
-var_dump($policy->check('/api/order/other'));  // allow，回退到 /api/*
-var_dump($policy->check('/api/order/charge')); // deny，精确规则优先
+var_dump($policy->check('/api/product/list')); // AccessStatus::ALLOW
+var_dump($policy->check('/api/order/other'));  // AccessStatus::ALLOW，回退到 /api/*
+var_dump($policy->check('/api/order/charge')); // AccessStatus::DENY，精确规则优先
 ```
 
 ### 通配符
@@ -81,22 +81,22 @@ var_dump($policy->check('/api/order/charge')); // deny，精确规则优先
 
 ```php
 $policy = new Policy();
-$policy->addPath('/api/*', PolicyNode::EFFECT_ALLOW);
-$policy->addPath('/api/*/private', PolicyNode::EFFECT_DENY);
+$policy->addPath('/api/*', AccessStatus::ALLOW);
+$policy->addPath('/api/*/private', AccessStatus::DENY);
 
-var_dump($policy->check('/api/shop'));          // allow
-var_dump($policy->check('/api/shop/products')); // allow
-var_dump($policy->check('/api/shop/private'));  // deny
+var_dump($policy->check('/api/shop'));          // AccessStatus::ALLOW
+var_dump($policy->check('/api/shop/products')); // AccessStatus::ALLOW
+var_dump($policy->check('/api/shop/private'));  // AccessStatus::DENY
 ```
 
 中间通配符只消费一个路径段：
 
 ```php
 $policy = new Policy();
-$policy->addPath('/a/*/c', PolicyNode::EFFECT_ALLOW);
+$policy->addPath('/a/*/c', AccessStatus::ALLOW);
 
-var_dump($policy->check('/a/b/c'));   // allow
-var_dump($policy->check('/a/b/d/c')); // unknown
+var_dump($policy->check('/a/b/c'));   // AccessStatus::ALLOW
+var_dump($policy->check('/a/b/d/c')); // AccessStatus::UNKNOWN
 ```
 
 ### 路径格式
@@ -104,28 +104,29 @@ var_dump($policy->check('/a/b/d/c')); // unknown
 - 开头和结尾的 `/` 会被忽略，`user/add` 与 `/user/add/` 等价。
 - 路径区分大小写。
 - 添加空路径或包含连续 `/` 的路径会抛出 `EasySwoole\Policy\Exception\Exception`。
-- 检查包含连续 `/` 的路径不会抛出异常，而是返回 `unknown`。
+- 检查包含连续 `/` 的路径不会抛出异常，返回 `AccessStatus::UNKNOWN`。
 
 ## 直接构建策略树
 
 除了使用 `Policy`，也可以直接操作 `PolicyNode`：
 
 ```php
+use EasySwoole\Policy\AccessStatus;
 use EasySwoole\Policy\PolicyNode;
 
 $root = new PolicyNode('*');
 $user = $root->addChild('user');
-$user->addChild('read')->setAllow(PolicyNode::EFFECT_ALLOW);
-$user->addChild('delete')->setAllow(PolicyNode::EFFECT_DENY);
-$user->addChild('*')->setAllow(PolicyNode::EFFECT_DENY);
+$user->addChild('read')->setAllow(AccessStatus::ALLOW);
+$user->addChild('delete')->setAllow(AccessStatus::DENY);
+$user->addChild('*')->setAllow(AccessStatus::DENY);
 
 $node = $root->search('/user/read');
-$effect = $node?->getEffect() ?? PolicyNode::EFFECT_UNKNOWN;
+$effect = $node?->getEffect() ?? AccessStatus::UNKNOWN;
 
-var_dump($effect); // allow
+var_dump($effect); // AccessStatus::ALLOW
 ```
 
-节点名称在构造后不可修改。读取授权效果请使用 `getEffect()`；它返回的是授权效果字符串，并非布尔值。
+节点名称在构造后不可修改。`getEffect()` 返回节点的 `AccessStatus`。
 
 ## 导出与恢复
 
@@ -136,14 +137,14 @@ $data = $root->toArray();
 $restored = new PolicyNode($data);
 
 $node = $restored->search('/user/delete');
-var_dump($node?->getEffect()); // deny
+var_dump($node?->getEffect()); // AccessStatus::DENY
 ```
 
 恢复时会递归创建子节点，并校验节点名称、子节点结构和授权效果。也可以更新现有节点的授权或子节点：
 
 ```php
 $restored->restore([
-    'allow' => PolicyNode::EFFECT_DENY,
+    'allow' => AccessStatus::DENY->value,
 ]);
 ```
 
@@ -176,7 +177,7 @@ try {
 ```php
 $policy = new Policy();
 
-var_dump($policy->check('/article/read')); // unknown
+var_dump($policy->check('/article/read')); // AccessStatus::UNKNOWN
 var_dump($policy->toArray());
 ```
 
@@ -195,27 +196,27 @@ array(3) {
 该方法没有返回值；执行结果是创建或更新规则：
 
 ```php
-$result = $policy->addPath('/article/read', PolicyNode::EFFECT_ALLOW);
+$result = $policy->addPath('/article/read', AccessStatus::ALLOW);
 
 var_dump($result);                         // NULL
-var_dump($policy->check('/article/read')); // allow
+var_dump($policy->check('/article/read')); // AccessStatus::ALLOW
 
-$policy->addPath('/article/read', PolicyNode::EFFECT_DENY);
-var_dump($policy->check('/article/read')); // deny，已有规则被更新
+$policy->addPath('/article/read', AccessStatus::DENY);
+var_dump($policy->check('/article/read')); // AccessStatus::DENY，已有规则被更新
 ```
 
 ### `Policy::check()`
 
-返回 `allow`、`deny` 或 `unknown`：
+返回 `AccessStatus::ALLOW`、`AccessStatus::DENY` 或 `AccessStatus::UNKNOWN`：
 
 ```php
 $policy = new Policy();
-$policy->addPath('/article/read', PolicyNode::EFFECT_ALLOW);
-$policy->addPath('/article/delete', PolicyNode::EFFECT_DENY);
+$policy->addPath('/article/read', AccessStatus::ALLOW);
+$policy->addPath('/article/delete', AccessStatus::DENY);
 
-var_dump($policy->check('/article/read'));   // allow
-var_dump($policy->check('/article/delete')); // deny
-var_dump($policy->check('/article/update')); // unknown
+var_dump($policy->check('/article/read'));   // AccessStatus::ALLOW
+var_dump($policy->check('/article/delete')); // AccessStatus::DENY
+var_dump($policy->check('/article/update')); // AccessStatus::UNKNOWN
 ```
 
 ### `Policy::toArray()`
@@ -224,7 +225,7 @@ var_dump($policy->check('/article/update')); // unknown
 
 ```php
 $policy = new Policy();
-$policy->addPath('/article/read', PolicyNode::EFFECT_ALLOW);
+$policy->addPath('/article/read', AccessStatus::ALLOW);
 
 print_r($policy->toArray());
 ```
@@ -265,16 +266,16 @@ Array
 ```php
 $node = new PolicyNode('article');
 var_dump($node->getName());   // article
-var_dump($node->getEffect()); // unknown
+var_dump($node->getEffect()); // AccessStatus::UNKNOWN
 
 $restored = new PolicyNode([
     'name' => 'read',
     'leaves' => [],
-    'allow' => PolicyNode::EFFECT_ALLOW,
+    'allow' => AccessStatus::ALLOW->value,
 ]);
 
 var_dump($restored->getName());   // read
-var_dump($restored->getEffect()); // allow
+var_dump($restored->getEffect()); // AccessStatus::ALLOW
 ```
 
 ### `PolicyNode::addChild()`
@@ -342,12 +343,12 @@ var_dump(array_keys($root->getLeaves())); // ["article", "user"]
 ```php
 $node = new PolicyNode('read');
 
-var_dump($node->getEffect()); // unknown
+var_dump($node->getEffect()); // AccessStatus::UNKNOWN
 
-$result = $node->setAllow(PolicyNode::EFFECT_ALLOW);
+$result = $node->setAllow(AccessStatus::ALLOW);
 
 var_dump($result);            // NULL
-var_dump($node->getEffect()); // allow
+var_dump($node->getEffect()); // AccessStatus::ALLOW
 ```
 
 ### `PolicyNode::search()`
@@ -358,13 +359,13 @@ var_dump($node->getEffect()); // allow
 $root = new PolicyNode('*');
 $root->addChild('article')
     ->addChild('read')
-    ->setAllow(PolicyNode::EFFECT_ALLOW);
+    ->setAllow(AccessStatus::ALLOW);
 
 $matched = $root->search('/article/read');
 $missing = $root->search('/user/read');
 
 var_dump($matched?->getName());   // read
-var_dump($matched?->getEffect()); // allow
+var_dump($matched?->getEffect()); // AccessStatus::ALLOW
 var_dump($missing);               // NULL
 ```
 
@@ -374,7 +375,7 @@ var_dump($missing);               // NULL
 
 ```php
 $node = new PolicyNode('read');
-$node->setAllow(PolicyNode::EFFECT_ALLOW);
+$node->setAllow(AccessStatus::ALLOW);
 
 var_dump($node->toArray());
 ```
@@ -396,19 +397,19 @@ array(3) {
 ```php
 $node = new PolicyNode('article');
 $result = $node->restore([
-    'allow' => PolicyNode::EFFECT_DENY,
+    'allow' => AccessStatus::DENY->value,
     'leaves' => [
         'read' => [
             'name' => 'read',
             'leaves' => [],
-            'allow' => PolicyNode::EFFECT_ALLOW,
+            'allow' => AccessStatus::ALLOW->value,
         ],
     ],
 ]);
 
 var_dump($result === $node);                       // true
-var_dump($node->getEffect());                      // deny
-var_dump($node->search('/read')?->getEffect());    // allow
+var_dump($node->getEffect());                      // AccessStatus::DENY
+var_dump($node->search('/read')?->getEffect());    // AccessStatus::ALLOW
 ```
 
 ## API 概览
@@ -417,8 +418,8 @@ var_dump($node->search('/read')?->getEffect());    // allow
 
 | 方法 | 说明 | 执行结果 |
 | --- | --- | --- |
-| `addPath(string $path, string $allow = EFFECT_ALLOW): void` | 添加或更新路径规则 | 无返回值；后续 `check()` 使用新规则 |
-| `check(string $path): string` | 检查路径 | 返回 `allow`、`deny` 或 `unknown` |
+| `addPath(string $path, AccessStatus $allow = AccessStatus::ALLOW): void` | 添加或更新路径规则 | 无返回值；后续 `check()` 使用新规则 |
+| `check(string $path): AccessStatus` | 检查路径 | 返回 `AccessStatus::ALLOW`、`AccessStatus::DENY` 或 `AccessStatus::UNKNOWN` |
 | `toArray(): array` | 导出完整策略树 | 返回嵌套数组 |
 
 ### `PolicyNode`
@@ -427,8 +428,8 @@ var_dump($node->search('/read')?->getEffect());    // allow
 | --- | --- | --- |
 | `addChild(string $nodeName): PolicyNode` | 添加或获取直接子节点 | 返回对应的子节点实例 |
 | `search(string $path): ?PolicyNode` | 搜索最匹配的策略节点 | 返回节点或 `null` |
-| `getEffect(): string` | 获取节点授权效果 | 返回 `allow`、`deny` 或 `unknown` |
-| `setAllow(string $allow): void` | 设置节点授权效果 | 无返回值；节点效果被更新 |
+| `getEffect(): AccessStatus` | 获取节点授权效果 | 返回 `AccessStatus::ALLOW`、`AccessStatus::DENY` 或 `AccessStatus::UNKNOWN` |
+| `setAllow(AccessStatus $allow): void` | 设置节点授权效果 | 无返回值；节点效果被更新 |
 | `getName(): string` | 获取节点名称 | 返回名称字符串 |
 | `getLeaves(): array` | 获取直接子节点 | 返回 `array<string, PolicyNode>` |
 | `setLeaves(array $leaves): void` | 替换直接子节点并验证结构 | 无返回值；子节点集合被替换 |

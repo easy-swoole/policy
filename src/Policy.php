@@ -31,9 +31,8 @@ class Policy
     /**
      * 添加路径并设置权限
      * @param string $path
-     * @param string $allow
      */
-    public function addPath(string $path, string $allow = PolicyNode::EFFECT_ALLOW): void
+    public function addPath(string $path, AccessStatus $allow = AccessStatus::ALLOW): void
     {
         $path = trim($path, '/');
         if ($path === '') {
@@ -55,16 +54,10 @@ class Policy
     /**
      * 检测权限
      * @param string $path
-     * @return string
      */
-    public function check(string $path): string
+    public function check(string $path): AccessStatus
     {
-        $node = $this->root->search($path);
-        if ($node) {
-            return $node->getEffect();
-        } else {
-            return PolicyNode::EFFECT_UNKNOWN;
-        }
+        return $this->root->search($path)?->getEffect() ?? AccessStatus::UNKNOWN;
     }
 
     /**

@@ -9,9 +9,6 @@ use EasySwoole\Spl\SplBean;
 
 class PolicyNode extends SplBean
 {
-    public const EFFECT_ALLOW = 'allow';
-    public const EFFECT_DENY = 'deny';
-    public const EFFECT_UNKNOWN = 'unknown';
     /*
      * 当前节点路径
      */
@@ -24,7 +21,7 @@ class PolicyNode extends SplBean
     /*
      * 当前节点权限
      */
-    protected string $allow = self::EFFECT_UNKNOWN;
+    protected string $allow = 'unknown';
 
     /**
      * @param string|array<string, mixed> $info
@@ -94,23 +91,18 @@ class PolicyNode extends SplBean
 
     /**
      * 判断是否允许
-     * @return string
      */
-    public function getEffect(): string
+    public function getEffect(): AccessStatus
     {
-        return $this->allow;
+        return AccessStatus::from($this->allow);
     }
 
     /**
      * 设置是否允许
-     * @param string $allow
      */
-    public function setAllow(string $allow): void
+    public function setAllow(AccessStatus $allow): void
     {
-        if (!in_array($allow, [self::EFFECT_ALLOW, self::EFFECT_DENY, self::EFFECT_UNKNOWN], true)) {
-            throw new PolicyException("Invalid policy effect '{$allow}'.");
-        }
-        $this->allow = $allow;
+        $this->allow = $allow->value;
     }
 
     /**
@@ -159,7 +151,7 @@ class PolicyNode extends SplBean
 
         if (isset($this->leaves[$segment])) {
             $exactMatch = $this->leaves[$segment]->searchSegments($segments, $index + 1);
-            if ($exactMatch !== null && $exactMatch->getEffect() !== self::EFFECT_UNKNOWN) {
+            if ($exactMatch !== null && $exactMatch->getEffect() !== AccessStatus::UNKNOWN) {
                 return $exactMatch;
             }
         }
@@ -173,10 +165,10 @@ class PolicyNode extends SplBean
             }
 
             $wildcardMatch = $wildcard->searchSegments($segments, $index + 1);
-            if ($wildcardMatch !== null && $wildcardMatch->getEffect() !== self::EFFECT_UNKNOWN) {
+            if ($wildcardMatch !== null && $wildcardMatch->getEffect() !== AccessStatus::UNKNOWN) {
                 return $wildcardMatch;
             }
-            if ($wildcard->getEffect() !== self::EFFECT_UNKNOWN) {
+            if ($wildcard->getEffect() !== AccessStatus::UNKNOWN) {
                 return $wildcard;
             }
             if ($wildcardMatch !== null) {
@@ -204,10 +196,7 @@ class PolicyNode extends SplBean
             }
         }
         if (array_key_exists('allow', $data)) {
-            if (!is_string($data['allow'])) {
-                throw new PolicyException('Policy effect must be a string.');
-            }
-            $this->setAllow($data['allow']);
+            $this->setAllow($this->parseStoredEffect($data['allow']));
         }
         if (array_key_exists('leaves', $data)) {
             if (!is_array($data['leaves'])) {
@@ -232,10 +221,7 @@ class PolicyNode extends SplBean
             $this->name = $data['name'];
         }
         if (array_key_exists('allow', $data)) {
-            if (!is_string($data['allow'])) {
-                throw new PolicyException('Policy effect must be a string.');
-            }
-            $this->setAllow($data['allow']);
+            $this->setAllow($this->parseStoredEffect($data['allow']));
         }
         if (array_key_exists('leaves', $data)) {
             if (!is_array($data['leaves'])) {
@@ -264,6 +250,16 @@ class PolicyNode extends SplBean
         }
 
         return $normalized;
+    }
+
+    private function parseStoredEffect(mixed $value): AccessStatus
+    {
+        if (!is_string($value)) {
+            throw new PolicyException('Policy effect must be a string.');
+        }
+
+        return AccessStatus::tryFrom($value)
+            ?? throw new PolicyException("Invalid policy effect '{$value}'.");
     }
 
     private function assertValidName(string $name): void

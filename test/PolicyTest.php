@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace EasySwoole\Policy\Test;
 
+use EasySwoole\Policy\AccessStatus;
 use EasySwoole\Policy\Policy;
 use EasySwoole\Policy\PolicyNode;
 use EasySwoole\Spl\SplBean;
@@ -15,52 +16,52 @@ final class PolicyTest extends TestCase
     public function testExactRulesAndTerminalWildcard(): void
     {
         $policy = new Policy();
-        $policy->addPath('/user/add', PolicyNode::EFFECT_ALLOW);
-        $policy->addPath('/user/update', PolicyNode::EFFECT_ALLOW);
-        $policy->addPath('/user/delete', PolicyNode::EFFECT_DENY);
-        $policy->addPath('/user/*', PolicyNode::EFFECT_DENY);
+        $policy->addPath('/user/add', AccessStatus::ALLOW);
+        $policy->addPath('/user/update', AccessStatus::ALLOW);
+        $policy->addPath('/user/delete', AccessStatus::DENY);
+        $policy->addPath('/user/*', AccessStatus::DENY);
 
-        self::assertSame(PolicyNode::EFFECT_ALLOW, $policy->check('/user/add'));
-        self::assertSame(PolicyNode::EFFECT_DENY, $policy->check('/user/delete'));
-        self::assertSame(PolicyNode::EFFECT_DENY, $policy->check('/user/other/deep'));
-        self::assertSame(PolicyNode::EFFECT_UNKNOWN, $policy->check('/unknown'));
+        self::assertSame(AccessStatus::ALLOW, $policy->check('/user/add'));
+        self::assertSame(AccessStatus::DENY, $policy->check('/user/delete'));
+        self::assertSame(AccessStatus::DENY, $policy->check('/user/other/deep'));
+        self::assertSame(AccessStatus::UNKNOWN, $policy->check('/unknown'));
     }
 
     public function testFailedExactBranchFallsBackToWildcard(): void
     {
         $policy = new Policy();
-        $policy->addPath('/api/*', PolicyNode::EFFECT_ALLOW);
-        $policy->addPath('/api/order/charge', PolicyNode::EFFECT_DENY);
-        $policy->addPath('/api/order/info', PolicyNode::EFFECT_DENY);
+        $policy->addPath('/api/*', AccessStatus::ALLOW);
+        $policy->addPath('/api/order/charge', AccessStatus::DENY);
+        $policy->addPath('/api/order/info', AccessStatus::DENY);
 
-        self::assertSame(PolicyNode::EFFECT_DENY, $policy->check('/api/order/charge'));
-        self::assertSame(PolicyNode::EFFECT_ALLOW, $policy->check('/api/order/other'));
+        self::assertSame(AccessStatus::DENY, $policy->check('/api/order/charge'));
+        self::assertSame(AccessStatus::ALLOW, $policy->check('/api/order/other'));
     }
 
     public function testNodeCannotConsumeTheSameSegmentTwice(): void
     {
         $policy = new Policy();
-        $policy->addPath('/foo', PolicyNode::EFFECT_ALLOW);
+        $policy->addPath('/foo', AccessStatus::ALLOW);
 
-        self::assertSame(PolicyNode::EFFECT_UNKNOWN, $policy->check('/foo/foo'));
+        self::assertSame(AccessStatus::UNKNOWN, $policy->check('/foo/foo'));
     }
 
     public function testIntermediateWildcardMatchesExactlyOneSegment(): void
     {
         $policy = new Policy();
-        $policy->addPath('/a/*/c', PolicyNode::EFFECT_ALLOW);
+        $policy->addPath('/a/*/c', AccessStatus::ALLOW);
 
-        self::assertSame(PolicyNode::EFFECT_ALLOW, $policy->check('/a/x/c'));
-        self::assertSame(PolicyNode::EFFECT_UNKNOWN, $policy->check('/a/x/y/c'));
+        self::assertSame(AccessStatus::ALLOW, $policy->check('/a/x/c'));
+        self::assertSame(AccessStatus::UNKNOWN, $policy->check('/a/x/y/c'));
     }
 
     public function testMultipleWildcardsMatchTheDocumentedRoute(): void
     {
         $policy = new Policy();
-        $policy->addPath('/Api/Admin/Merchant/*/*', PolicyNode::EFFECT_ALLOW);
+        $policy->addPath('/Api/Admin/Merchant/*/*', AccessStatus::ALLOW);
 
         self::assertSame(
-            PolicyNode::EFFECT_ALLOW,
+            AccessStatus::ALLOW,
             $policy->check('/Api/Admin/Merchant/Merchant/getMerchantList')
         );
     }
@@ -68,30 +69,34 @@ final class PolicyTest extends TestCase
     public function testWildcardEffectRemainsFallbackWhenItHasChildren(): void
     {
         $policy = new Policy();
-        $policy->addPath('/api/*', PolicyNode::EFFECT_ALLOW);
-        $policy->addPath('/api/*/private', PolicyNode::EFFECT_DENY);
+        $policy->addPath('/api/*', AccessStatus::ALLOW);
+        $policy->addPath('/api/*/private', AccessStatus::DENY);
 
-        self::assertSame(PolicyNode::EFFECT_ALLOW, $policy->check('/api/foo'));
-        self::assertSame(PolicyNode::EFFECT_DENY, $policy->check('/api/foo/private'));
-        self::assertSame(PolicyNode::EFFECT_ALLOW, $policy->check('/api/foo/other'));
+        self::assertSame(AccessStatus::ALLOW, $policy->check('/api/foo'));
+        self::assertSame(AccessStatus::DENY, $policy->check('/api/foo/private'));
+        self::assertSame(AccessStatus::ALLOW, $policy->check('/api/foo/other'));
     }
 
     public function testArrayHydrationRecursivelyRestoresNodes(): void
     {
         $node = new PolicyNode([
             'name' => '*',
-            'allow' => PolicyNode::EFFECT_UNKNOWN,
+            'allow' => AccessStatus::UNKNOWN->value,
             'leaves' => [
                 'api' => [
                     'name' => 'api',
-                    'allow' => PolicyNode::EFFECT_ALLOW,
+                    'allow' => AccessStatus::ALLOW->value,
                     'leaves' => [],
                 ],
             ],
         ]);
 
-        self::assertSame(PolicyNode::EFFECT_ALLOW, $node->search('/api')?->getEffect());
+        self::assertSame(AccessStatus::ALLOW, $node->search('/api')?->getEffect());
         self::assertSame('api', $node->toArray()['leaves']['api']['name']);
+        self::assertSame('allow', $node->toArray()['leaves']['api']['allow']);
+
+        $node->restore(['allow' => 'deny']);
+        self::assertSame(AccessStatus::DENY, $node->getEffect());
     }
 
     public function testArrayHydrationRejectsInvalidEffect(): void
@@ -123,17 +128,17 @@ final class PolicyTest extends TestCase
         (new Policy())->addPath('/api//order');
     }
 
-    public function testInvalidEffectIsRejected(): void
+    public function testSetAllowRejectsString(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(\TypeError::class);
 
-        (new PolicyNode('test'))->setAllow('invalid');
+        (new PolicyNode('test'))->setAllow('allow');
     }
 
     public function testArrayFilterPropagatesToChildNodes(): void
     {
         $node = new PolicyNode('root');
-        $node->addChild('child')->setAllow(PolicyNode::EFFECT_ALLOW);
+        $node->addChild('child')->setAllow(AccessStatus::ALLOW);
 
         $filtered = $node->toArray(SplBean::FILTER_NOT_EMPTY);
 
