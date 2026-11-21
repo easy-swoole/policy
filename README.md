@@ -334,7 +334,7 @@ var_dump($result);                         // NULL
 var_dump(array_keys($root->getLeaves())); // ["article", "user"]
 ```
 
-数组键必须与节点名称一致，否则会抛出策略异常。
+数组键必须与节点名称一致。子节点引用自身或祖先形成循环时，`setLeaves()` 会抛出策略异常，并保留原有子节点。
 
 ### `PolicyNode::setAllow()` 与 `PolicyNode::getEffect()`
 
@@ -431,7 +431,7 @@ var_dump($node->search('/read')?->getEffect());    // AccessStatus::ALLOW
 | `getEffect(): AccessStatus` | 获取节点授权效果 | 返回 `AccessStatus::ALLOW`、`AccessStatus::DENY` 或 `AccessStatus::UNKNOWN` |
 | `setAllow(AccessStatus $allow): void` | 设置节点授权效果 | 无返回值；节点效果被更新 |
 | `getName(): string` | 获取节点名称 | 返回名称字符串 |
-| `getLeaves(): array` | 获取直接子节点 | 返回 `array<string, PolicyNode>` |
+| `getLeaves(): array` | 获取直接子节点 | 返回 `array<array-key, PolicyNode>` |
 | `setLeaves(array $leaves): void` | 替换直接子节点并验证结构 | 无返回值；子节点集合被替换 |
 | `toArray(callable\|int\|null $filter = null): array` | 递归导出节点 | 返回嵌套数组 |
 | `restore(array $data = []): static` | 从数组安全更新节点 | 返回当前节点实例 |

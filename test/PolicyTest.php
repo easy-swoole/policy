@@ -99,6 +99,20 @@ final class PolicyTest extends TestCase
         self::assertSame(AccessStatus::DENY, $node->getEffect());
     }
 
+    public function testNumericPathSegmentsSurviveArrayRoundTrip(): void
+    {
+        $policy = new Policy();
+        $policy->addPath('/users/123', AccessStatus::ALLOW);
+        $policy->addPath('/users/0123', AccessStatus::DENY);
+
+        $data = $policy->toArray();
+        $restored = new PolicyNode($data);
+
+        self::assertSame($data, $restored->toArray());
+        self::assertSame(AccessStatus::ALLOW, $restored->search('/users/123')?->getEffect());
+        self::assertSame(AccessStatus::DENY, $restored->search('/users/0123')?->getEffect());
+    }
+
     public function testArrayHydrationRejectsInvalidEffect(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -133,6 +147,32 @@ final class PolicyTest extends TestCase
         $this->expectException(\TypeError::class);
 
         (new PolicyNode('test'))->setAllow('allow');
+    }
+
+    public function testSetLeavesRejectsSelfReference(): void
+    {
+        $node = new PolicyNode('node');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Circular policy node reference.');
+
+        $node->setLeaves(['node' => $node]);
+    }
+
+    public function testSetLeavesRejectsAnAncestorWithoutReplacingExistingChildren(): void
+    {
+        $root = new PolicyNode('root');
+        $child = $root->addChild('child');
+        $existing = $child->addChild('existing');
+
+        try {
+            $child->setLeaves(['root' => $root]);
+            self::fail('Expected a circular reference to be rejected.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertSame('Circular policy node reference.', $exception->getMessage());
+        }
+
+        self::assertSame(['existing' => $existing], $child->getLeaves());
     }
 
     public function testArrayFilterPropagatesToChildNodes(): void

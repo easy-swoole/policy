@@ -15,7 +15,7 @@ class PolicyNode extends SplBean
     protected string $name = '*';
     /**
      * 子节点列表
-     * @var array<string, PolicyNode>
+     * @var array<array-key, PolicyNode>
      */
     protected array $leaves = [];
     /*
@@ -65,7 +65,7 @@ class PolicyNode extends SplBean
 
     /**
      * 获取节点的权限
-     * @return array<string, PolicyNode>
+     * @return array<array-key, PolicyNode>
      */
     public function getLeaves(): array
     {
@@ -74,7 +74,7 @@ class PolicyNode extends SplBean
 
     /**
      * 设置节点权限
-     * @param array<string, mixed> $leaves
+     * @param array<array-key, mixed> $leaves
      */
     public function setLeaves(array $leaves): void
     {
@@ -82,10 +82,17 @@ class PolicyNode extends SplBean
             if (!$node instanceof PolicyNode) {
                 throw new PolicyException("Policy leaf '{$name}' must be a PolicyNode instance.");
             }
-            if ($name !== $node->getName()) {
+            // PHP stores some numeric string keys as integers.
+            if ((string) $name !== $node->getName()) {
                 throw new PolicyException("Policy leaf key '{$name}' must match the node name.");
             }
         }
+        $active = [spl_object_id($this) => true];
+        $visited = [];
+        foreach ($leaves as $node) {
+            self::assertAcyclic($node, $active, $visited);
+        }
+
         $this->leaves = $leaves;
     }
 
@@ -233,15 +240,12 @@ class PolicyNode extends SplBean
 
     /**
      * @param array<array-key, mixed> $leaves
-     * @return array<string, PolicyNode>
+     * @return array<array-key, PolicyNode>
      */
     private function normalizeLeaves(array $leaves): array
     {
         $normalized = [];
         foreach ($leaves as $name => $node) {
-            if (!is_string($name)) {
-                throw new PolicyException('Policy leaf keys must be strings.');
-            }
             $normalized[$name] = match (true) {
                 $node instanceof PolicyNode => $node,
                 is_array($node) => new PolicyNode($node),
@@ -260,6 +264,28 @@ class PolicyNode extends SplBean
 
         return AccessStatus::tryFrom($value)
             ?? throw new PolicyException("Invalid policy effect '{$value}'.");
+    }
+
+    /**
+     * @param array<int, true> $active
+     * @param array<int, true> $visited
+     */
+    private static function assertAcyclic(PolicyNode $node, array &$active, array &$visited): void
+    {
+        $id = spl_object_id($node);
+        if (isset($active[$id])) {
+            throw new PolicyException('Circular policy node reference.');
+        }
+        if (isset($visited[$id])) {
+            return;
+        }
+
+        $active[$id] = true;
+        foreach ($node->leaves as $child) {
+            self::assertAcyclic($child, $active, $visited);
+        }
+        unset($active[$id]);
+        $visited[$id] = true;
     }
 
     private function assertValidName(string $name): void
